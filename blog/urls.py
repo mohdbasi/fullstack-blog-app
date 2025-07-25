@@ -1,10 +1,11 @@
 from django.urls import path
 from . import views
-from .views import RegisterView
+from .views import RegisterView, LoginView
 
 urlpatterns = [
 
     path('auth/register/', RegisterView.as_view(), name='register'),
+    path('auth/login/', LoginView.as_view(), name='login'),
 
     # Post API
     path('posts/', views.PostListCreate.as_view()),
