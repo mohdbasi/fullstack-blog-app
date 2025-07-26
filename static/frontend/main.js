@@ -1,6 +1,7 @@
 // 🔁 Load all posts and their comments
 function loadPosts() {
   const token = localStorage.getItem('token');
+  const currentUsername = localStorage.getItem('username'); // 🧠 Save this during login
 
   fetch('/api/posts/', {
     headers: token ? { 'Authorization': 'Token ' + token } : {}
@@ -11,19 +12,23 @@ function loadPosts() {
       postList.innerHTML = '';
 
       data.forEach(post => {
+        const isAuthor = token && post.author.username === currentUsername;
         const card = document.createElement('div');
         card.className = 'col-md-4';
-
         card.innerHTML = `
           <div class="card shadow-sm">
             <div class="card-body">
-              <h5>${post.title}</h5>
-              <p>${post.content}</p>
+              <h5 class="post-title">${post.title}</h5>
+              <p class="post-content">${post.content}</p>
               <small>By ${post.author.username}</small><br>
+              <small>👍 ${post.likes_count}</small>
 
-              <button class="btn btn-sm btn-outline-primary like-btn mt-2" data-post-id="${post.id}">
-                👍 ${post.likes_count}
-              </button>
+              ${isAuthor ? `
+                <div class="mt-2">
+                  <button class="btn btn-sm btn-outline-secondary edit-btn" data-id="${post.id}">Edit</button>
+                  <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${post.id}">Delete</button>
+                </div>
+              ` : ''}
 
               <div class="mt-3">
                 <input type="text" class="form-control comment-input" data-post-id="${post.id}" placeholder="Add a comment">
@@ -33,41 +38,72 @@ function loadPosts() {
             </div>
           </div>
         `;
-
         postList.appendChild(card);
 
         // Load comments for each post
         loadComments(post.id);
       });
 
-      // 👍 Like button click handling
-      document.querySelectorAll('.like-btn').forEach(button => {
-        button.addEventListener('click', async () => {
-          const postId = button.getAttribute('data-post-id');
-          if (!token) {
-            alert('❌ You must be logged in to like posts.');
-            return;
-          }
+      // 🔄 Setup Edit/Delete Listeners
+      document.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', handleEditPost);
+      });
 
-          try {
-            const response = await fetch(`/api/posts/${postId}/like/`, {
-              method: 'POST',
-              headers: {
-                'Authorization': 'Token ' + token
-              }
-            });
-
-            if (response.ok) {
-              loadPosts(); // 🔁 Refresh posts to update like count
-            } else {
-              alert('❌ Failed to like/unlike the post.');
-            }
-          } catch (err) {
-            alert('❌ Network error');
-          }
-        });
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', handleDeletePost);
       });
     });
+}
+
+async function handleEditPost(e) {
+  const postId = e.target.dataset.id;
+  const card = e.target.closest('.card-body');
+  const titleEl = card.querySelector('.post-title');
+  const contentEl = card.querySelector('.post-content');
+
+  const newTitle = prompt('Edit Title:', titleEl.textContent);
+  const newContent = prompt('Edit Content:', contentEl.textContent);
+
+  if (!newTitle || !newContent) return;
+
+  const token = localStorage.getItem('token');
+
+  const response = await fetch(`/api/posts/${postId}/`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Token ' + token
+    },
+    body: JSON.stringify({ title: newTitle, content: newContent })
+  });
+
+  if (response.ok) {
+    loadPosts();
+  } else {
+    alert('❌ Failed to update post');
+  }
+}
+
+async function handleDeletePost(e) {
+  const postId = e.target.dataset.id;
+  const confirmDelete = confirm('Are you sure you want to delete this post?');
+
+  if (!confirmDelete) return;
+
+  const token = localStorage.getItem('token');
+
+  const response = await fetch(`/api/posts/${postId}/`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': 'Token ' + token
+    }
+  });
+
+  if (response.ok) {
+    loadPosts();
+  } else {
+    alert('❌ Failed to delete post');
+  }
 }
 
 
