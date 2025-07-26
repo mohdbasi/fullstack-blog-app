@@ -8,22 +8,22 @@ from .views import (
 
 urlpatterns = [
 
+    # Frontend page routes
+    path('', views.frontend_index_view, name='home'),
+    path('login/', views.frontend_login_view, name='login-page'),
+    path('register/', views.frontend_register_view, name='register-page'),
+
+    # Auth
     path('auth/register/', RegisterView.as_view(), name='register'),
     path('auth/login/', LoginView.as_view(), name='login'),
     path('auth/logout/', logout_view, name='logout'),
 
-
-    # Post routes
+    # Posts
     path('posts/', PostListCreate.as_view(), name='post-list-create'),
     path('posts/<int:pk>/', PostDetail.as_view(), name='post-detail'),
     path('posts/<int:pk>/like/', PostLikeToggle.as_view(), name='post-like'),
 
-    # Comment routes
+    # Comments
     path('posts/<int:post_id>/comments/', CommentListCreate.as_view(), name='comment-list-create'),
     path('comments/<int:pk>/', CommentDetail.as_view(), name='comment-detail'),
-
-    # Auth API
-    path('auth/register/', views.RegisterView.as_view()),
-    path('auth/login/', views.LoginView.as_view()),
-    path('auth/logout/', views.logout_view),
 ]
