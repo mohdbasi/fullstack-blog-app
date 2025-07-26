@@ -13,13 +13,17 @@ function loadPosts() {
       data.forEach(post => {
         const card = document.createElement('div');
         card.className = 'col-md-4';
+
         card.innerHTML = `
           <div class="card shadow-sm">
             <div class="card-body">
               <h5>${post.title}</h5>
               <p>${post.content}</p>
               <small>By ${post.author.username}</small><br>
-              <small>👍 ${post.likes_count}</small>
+
+              <button class="btn btn-sm btn-outline-primary like-btn mt-2" data-post-id="${post.id}">
+                👍 ${post.likes_count}
+              </button>
 
               <div class="mt-3">
                 <input type="text" class="form-control comment-input" data-post-id="${post.id}" placeholder="Add a comment">
@@ -29,13 +33,43 @@ function loadPosts() {
             </div>
           </div>
         `;
+
         postList.appendChild(card);
 
         // Load comments for each post
         loadComments(post.id);
       });
+
+      // 👍 Like button click handling
+      document.querySelectorAll('.like-btn').forEach(button => {
+        button.addEventListener('click', async () => {
+          const postId = button.getAttribute('data-post-id');
+          if (!token) {
+            alert('❌ You must be logged in to like posts.');
+            return;
+          }
+
+          try {
+            const response = await fetch(`/api/posts/${postId}/like/`, {
+              method: 'POST',
+              headers: {
+                'Authorization': 'Token ' + token
+              }
+            });
+
+            if (response.ok) {
+              loadPosts(); // 🔁 Refresh posts to update like count
+            } else {
+              alert('❌ Failed to like/unlike the post.');
+            }
+          } catch (err) {
+            alert('❌ Network error');
+          }
+        });
+      });
     });
 }
+
 
 // 🔁 Load comments for a specific post
 async function loadComments(postId) {
