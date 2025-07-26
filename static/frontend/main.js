@@ -1,4 +1,4 @@
-// Load posts
+// 🔁 Load all posts and their comments
 function loadPosts() {
   const token = localStorage.getItem('token');
 
@@ -20,20 +20,51 @@ function loadPosts() {
               <p>${post.content}</p>
               <small>By ${post.author.username}</small><br>
               <small>👍 ${post.likes_count}</small>
+
+              <div class="mt-3">
+                <input type="text" class="form-control comment-input" data-post-id="${post.id}" placeholder="Add a comment">
+                <button class="btn btn-sm btn-primary mt-2 comment-btn" data-post-id="${post.id}">Comment</button>
+                <ul class="comment-list mt-2" id="comments-${post.id}"></ul>
+              </div>
             </div>
           </div>
         `;
         postList.appendChild(card);
+
+        // Load comments for each post
+        loadComments(post.id);
       });
     });
 }
 
+// 🔁 Load comments for a specific post
+async function loadComments(postId) {
+  try {
+    const res = await fetch(`/api/posts/${postId}/comments/`);
+    const data = await res.json();
+
+    const commentList = document.getElementById(`comments-${postId}`);
+    commentList.innerHTML = '';
+
+    data.forEach(comment => {
+      const li = document.createElement('li');
+      li.textContent = `${comment.author.username}: ${comment.text}`;
+      commentList.appendChild(li);
+    });
+  } catch (err) {
+    console.error(`❌ Failed to load comments for post ${postId}`, err);
+  }
+}
+
+// ✅ Run after DOM fully loaded
 document.addEventListener('DOMContentLoaded', () => {
   const postForm = document.getElementById('post-form');
   const postMessage = document.getElementById('post-message');
 
+  // Load all posts on page load
   loadPosts();
 
+  // 📝 Handle post creation
   postForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const title = document.getElementById('title').value.trim();
@@ -69,6 +100,43 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       postMessage.textContent = '❌ Network error';
       postMessage.style.color = 'red';
+    }
+  });
+
+  // 💬 Handle comment submission
+  document.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('comment-btn')) {
+      const postId = e.target.dataset.postId;
+      const input = document.querySelector(`.comment-input[data-post-id="${postId}"]`);
+      const text = input.value.trim();
+      const token = localStorage.getItem('token');
+
+      if (!text) return;
+
+      if (!token) {
+        alert('Login required to comment.');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/posts/${postId}/comments/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Token ' + token
+          },
+          body: JSON.stringify({ text })
+        });
+
+        if (res.ok) {
+          input.value = '';
+          loadComments(postId);
+        } else {
+          alert('❌ Failed to post comment.');
+        }
+      } catch (err) {
+        alert('❌ Network error.');
+      }
     }
   });
 });
