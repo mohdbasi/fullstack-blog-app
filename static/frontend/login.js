@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (response.ok) {
         localStorage.setItem('token', data.token);
-        localStorage.setItem('username', username);  // ✅ Save username for post ownership check
+        localStorage.setItem('username', username);  //  Save username for post ownership check
 
         loginMessage.textContent = '✅ Login successful!';
         loginMessage.style.color = 'green';

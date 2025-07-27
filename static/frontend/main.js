@@ -125,7 +125,7 @@ function renderPosts(posts) {
       }
     });
 
-    // 👍 Like handler
+    //  Like handler
     card.querySelector('.like-btn')?.addEventListener('click', async () => {
       const postId = post.id;
       if (!token) return alert('❌ You must be logged in to like posts.');
@@ -252,7 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 💬 Comment submission
+  // Comment submission
   document.addEventListener('click', async (e) => {
     if (e.target.classList.contains('comment-btn')) {
       const postId = e.target.dataset.postId;
@@ -284,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 🔍 Live Search
+  // Live Search
   document.getElementById('search-input')?.addEventListener('input', (e) => {
     const searchTerm = e.target.value.toLowerCase();
     const filtered = allPosts.filter(post => post.title.toLowerCase().includes(searchTerm));
