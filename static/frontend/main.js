@@ -149,19 +149,83 @@ function loadPosts() {
 // 🔁 Load comments for a post
 async function loadComments(postId) {
   try {
-    const res = await fetch(`/api/posts/${postId}/comments/`);
+    const res = await fetch(`/api/posts/${postId}/comments/`, {
+      headers: {
+        'Authorization': 'Token ' + localStorage.getItem('token')
+      }
+    });
     const data = await res.json();
     const commentList = document.getElementById(`comments-${postId}`);
     commentList.innerHTML = '';
+
     data.forEach(comment => {
       const li = document.createElement('li');
-      li.textContent = `${comment.author.username}: ${comment.text}`;
+      li.classList.add('mb-2');
+      li.innerHTML = `
+        <strong>${comment.author.username}:</strong> ${comment.text}
+        ${comment.is_owner ? `
+          <button class="btn btn-sm btn-link text-warning edit-comment-btn" 
+                  data-id="${comment.id}" 
+                  data-post-id="${postId}" 
+                  data-text="${encodeURIComponent(comment.text)}">✏️ Edit</button>
+          <button class="btn btn-sm btn-link text-danger delete-comment-btn" 
+                  data-id="${comment.id}" 
+                  data-post-id="${postId}">🗑️ Delete</button>
+        ` : ''}
+      `;
       commentList.appendChild(li);
     });
+
+    // 📝 Edit comment
+    document.querySelectorAll('.edit-comment-btn').forEach(button => {
+      button.addEventListener('click', (e) => {
+        const commentId = button.dataset.id;
+        const postId = button.dataset.postId;
+        const oldText = decodeURIComponent(button.dataset.text);
+        const newText = prompt("Edit your comment:", oldText);
+        if (!newText || newText === oldText) return;
+
+        const token = localStorage.getItem('token');
+        fetch(`/api/comments/${commentId}/`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Token ' + token
+          },
+          body: JSON.stringify({ text: newText })
+        }).then(res => {
+          if (res.ok) loadComments(postId);
+          else alert('❌ Could not edit comment.');
+        });
+      });
+    });
+
+    // 🗑️ Delete comment
+    document.querySelectorAll('.delete-comment-btn').forEach(button => {
+      button.addEventListener('click', (e) => {
+        const commentId = button.dataset.id;
+        const postId = button.dataset.postId;
+        const confirmDelete = confirm("Delete this comment?");
+        if (!confirmDelete) return;
+
+        const token = localStorage.getItem('token');
+        fetch(`/api/comments/${commentId}/`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': 'Token ' + token
+          }
+        }).then(res => {
+          if (res.ok) loadComments(postId);
+          else alert('❌ Could not delete comment.');
+        });
+      });
+    });
+
   } catch (err) {
     console.error(`❌ Failed to load comments for post ${postId}`, err);
   }
 }
+
 
 // ✅ DOM Ready
 document.addEventListener('DOMContentLoaded', () => {

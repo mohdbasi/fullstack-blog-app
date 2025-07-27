@@ -17,11 +17,16 @@ class UserSerializer(serializers.ModelSerializer):
 class CommentSerializer(serializers.ModelSerializer):
     author = UserSerializer(read_only=True)
     post = serializers.PrimaryKeyRelatedField(read_only=True)
-
+    is_owner = serializers.SerializerMethodField()
 
     class Meta:
         model = Comment
         fields = '__all__'
+
+    def get_is_owner(self, obj):
+        request = self.context.get('request')
+        return request and request.user == obj.author
+
 
 # 🔹 Post serializer
 class PostSerializer(serializers.ModelSerializer):
