@@ -33,6 +33,40 @@ Users can **register**, **login**, **create/edit/delete posts**, **like posts**,
 
 ---
 
+
+## Setup Instructions
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/mohdbasi/fullstack-blog-app
+cd blog-project
+```
+### 2. Backend Setup
+
+# Create a virtual environment
+python -m venv venv
+`venv\Scripts\activate` 
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Apply migrations
+python manage.py migrate
+
+# Run the server
+python manage.py runserver
+
+### 3. Frontend Setup
+- Pages are rendered directly via Django templates.
+- Frontend is located in:
+      ```templates/frontend/ (HTML)```
+      ```static/frontend/ (JavaScript)```
+
+
+--- 
+
+
 ## API Endpoints
 | Method | Endpoint                    | Description                  |
 | ------ | --------------------------- | ---------------------------- |
