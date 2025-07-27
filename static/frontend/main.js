@@ -48,6 +48,100 @@ function loadPosts() {
 
         postList.appendChild(card);
         loadComments(post.id);
+
+        // ✏️ Edit handler - inline form
+        card.querySelector('.edit-post-btn')?.addEventListener('click', (e) => {
+          const id = e.target.dataset.id;
+          const title = decodeURIComponent(e.target.dataset.title);
+          const content = decodeURIComponent(e.target.dataset.content);
+
+          const existingForm = document.querySelector('.inline-edit-form');
+          if (existingForm) existingForm.remove();
+
+          const editForm = document.createElement('form');
+          editForm.className = 'inline-edit-form mt-3';
+          editForm.innerHTML = `
+            <input type="text" class="form-control mb-2" name="title" value="${title}" required>
+            <textarea class="form-control mb-2" name="content" rows="3" required>${content}</textarea>
+            <button type="submit" class="btn btn-success btn-sm">Update</button>
+            <button type="button" class="btn btn-secondary btn-sm cancel-edit">Cancel</button>
+            <p class="edit-message mt-2 text-danger small"></p>
+          `;
+
+          const postBody = e.target.closest('.card-body');
+          postBody.appendChild(editForm);
+
+          // ❌ Cancel button
+          editForm.querySelector('.cancel-edit').addEventListener('click', () => {
+            editForm.remove();
+          });
+
+          // ✅ Submit updated post
+          editForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newTitle = editForm.querySelector('input[name="title"]').value.trim();
+            const newContent = editForm.querySelector('textarea[name="content"]').value.trim();
+            const token = localStorage.getItem('token');
+
+            try {
+              const res = await fetch(`/api/posts/${id}/`, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Token ' + token
+                },
+                body: JSON.stringify({ title: newTitle, content: newContent })
+              });
+
+              if (res.ok) {
+                loadPosts(); // Refresh UI
+              } else {
+                const data = await res.json();
+                editForm.querySelector('.edit-message').textContent = '❌ ' + (data.detail || 'Update failed');
+              }
+            } catch (err) {
+              editForm.querySelector('.edit-message').textContent = '❌ Network error';
+            }
+          });
+        });
+
+        // 🗑️ Delete handler
+        card.querySelector('.delete-post-btn')?.addEventListener('click', async (e) => {
+          const id = e.target.dataset.id;
+          const confirmed = confirm('Are you sure you want to delete this post?');
+          if (!confirmed) return;
+
+          try {
+            const res = await fetch(`/api/posts/${id}/`, {
+              method: 'DELETE',
+              headers: { 'Authorization': 'Token ' + token }
+            });
+            if (res.ok) loadPosts();
+            else alert('❌ Could not delete post.');
+          } catch (err) {
+            alert('❌ Network error while deleting post.');
+          }
+        });
+      });
+
+      // 👍 Like button handling
+      document.querySelectorAll('.like-btn').forEach(button => {
+        button.addEventListener('click', async () => {
+          const postId = button.getAttribute('data-post-id');
+          if (!token) return alert('❌ You must be logged in to like posts.');
+
+          try {
+            const response = await fetch(`/api/posts/${postId}/like/`, {
+              method: 'POST',
+              headers: { 'Authorization': 'Token ' + token }
+            });
+
+            if (response.ok) loadPosts();
+            else alert('❌ Failed to like/unlike the post.');
+          } catch (err) {
+            alert('❌ Network error');
+          }
+        });
       });
     });
 }
@@ -73,7 +167,6 @@ async function loadComments(postId) {
 document.addEventListener('DOMContentLoaded', () => {
   const postForm = document.getElementById('post-form');
   const postMessage = document.getElementById('post-message');
-
   loadPosts();
 
   // 📝 Create post
@@ -107,15 +200,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 🌐 Global Click Handling for dynamic buttons
+  // 💬 Comment submission
   document.addEventListener('click', async (e) => {
-    const token = localStorage.getItem('token');
-
-    // 💬 Comment
     if (e.target.classList.contains('comment-btn')) {
       const postId = e.target.dataset.postId;
       const input = document.querySelector(`.comment-input[data-post-id="${postId}"]`);
       const text = input.value.trim();
+      const token = localStorage.getItem('token');
       if (!text) return;
       if (!token) return alert('Login required to comment.');
 
@@ -139,96 +230,5 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('❌ Network error.');
       }
     }
-
-    // 👍 Like
-    if (e.target.classList.contains('like-btn')) {
-      const postId = e.target.dataset.postId;
-      if (!token) return alert('❌ You must be logged in to like posts.');
-
-      try {
-        const response = await fetch(`/api/posts/${postId}/like/`, {
-          method: 'POST',
-          headers: { 'Authorization': 'Token ' + token }
-        });
-
-        if (response.ok) loadPosts();
-        else alert('❌ Failed to like/unlike the post.');
-      } catch (err) {
-        alert('❌ Network error');
-      }
-    }
-
-    // ✏️ Edit
-    if (e.target.classList.contains('edit-post-btn')) {
-      const id = e.target.dataset.id;
-      const title = decodeURIComponent(e.target.dataset.title);
-      const content = decodeURIComponent(e.target.dataset.content);
-
-      document.getElementById('edit-post-id').value = id;
-      document.getElementById('edit-title').value = title;
-      document.getElementById('edit-content').value = content;
-      document.getElementById('edit-post-section').style.display = 'block';
-      window.scrollTo(0, 0);
-    }
-
-    // 🗑️ Delete
-    if (e.target.classList.contains('delete-post-btn')) {
-      const id = e.target.dataset.id;
-      const confirmed = confirm('Are you sure you want to delete this post?');
-      if (!confirmed) return;
-
-      try {
-        const res = await fetch(`/api/posts/${id}/`, {
-          method: 'DELETE',
-          headers: { 'Authorization': 'Token ' + token }
-        });
-        if (res.ok) {
-          loadPosts();
-        } else {
-          alert('❌ Could not delete post.');
-        }
-      } catch (err) {
-        alert('❌ Network error while deleting post.');
-      }
-    }
-  });
-
-  // ✏️ Submit edited post
-  document.getElementById('edit-post-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const id = document.getElementById('edit-post-id').value;
-    const title = document.getElementById('edit-title').value.trim();
-    const content = document.getElementById('edit-content').value.trim();
-    const token = localStorage.getItem('token');
-
-    try {
-      const response = await fetch(`/api/posts/${id}/`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Token ' + token
-        },
-        body: JSON.stringify({ title, content })
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        document.getElementById('edit-post-message').textContent = '✅ Post updated!';
-        document.getElementById('edit-post-form').reset();
-        document.getElementById('edit-post-section').style.display = 'none';
-        loadPosts();
-      } else {
-        document.getElementById('edit-post-message').textContent = '❌ ' + (data.detail || 'Error updating post');
-      }
-    } catch (err) {
-      document.getElementById('edit-post-message').textContent = '❌ Network error';
-    }
-  });
-
-  // ❌ Cancel edit
-  document.getElementById('cancel-edit').addEventListener('click', () => {
-    document.getElementById('edit-post-form').reset();
-    document.getElementById('edit-post-section').style.display = 'none';
   });
 });
