@@ -9,7 +9,8 @@ from rest_framework.authtoken.models import Token
 from .models import Post, Comment
 from .serializers import PostSerializer, CommentSerializer, UserSerializer
 
-# User registration view
+
+# User Registration
 class RegisterView(APIView):
     def post(self, request):
         serializer = UserSerializer(data=request.data)
@@ -18,7 +19,8 @@ class RegisterView(APIView):
             return Response({'message': 'User registered successfully'}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# User login view
+
+# User Login
 class LoginView(APIView):
     def post(self, request):
         username = request.data.get('username')
@@ -29,13 +31,15 @@ class LoginView(APIView):
             return Response({'token': token.key})
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
-# Logout view
+
+# Logout
 @api_view(['POST'])
 def logout_view(request):
     logout(request)
     return Response({'message': 'Logged out'})
 
-# Post CRUD
+
+# 🔹 Post List + Create View
 class PostListCreate(generics.ListCreateAPIView):
     queryset = Post.objects.all().order_by('-created_at')
     serializer_class = PostSerializer
@@ -44,6 +48,11 @@ class PostListCreate(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+
+# 🔹 Post Retrieve + Update + Delete View
 class PostDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
@@ -61,7 +70,11 @@ class PostDetail(generics.RetrieveUpdateDestroyAPIView):
         else:
             raise permissions.PermissionDenied("You can only delete your own post.")
 
-# Like toggle
+    def get_serializer_context(self):
+        return {'request': self.request}  
+
+
+# 🔹 Like Toggle
 class PostLikeToggle(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -74,7 +87,8 @@ class PostLikeToggle(APIView):
             post.likes.add(request.user)
             return Response({'status': 'liked'})
 
-# Comments
+
+# 🔹 Comment List + Create View
 class CommentListCreate(generics.ListCreateAPIView):
     serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
@@ -85,6 +99,11 @@ class CommentListCreate(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user, post_id=self.kwargs['post_id'])
 
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+
+# 🔹 Comment Detail View
 class CommentDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Comment.objects.all()
     serializer_class = CommentSerializer
@@ -102,6 +121,11 @@ class CommentDetail(generics.RetrieveUpdateDestroyAPIView):
         else:
             raise permissions.PermissionDenied("You can only delete your own comment.")
 
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+
+# Frontend views
 def frontend_login_view(request):
     return render(request, 'frontend/login.html')
 

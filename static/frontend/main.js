@@ -1,7 +1,6 @@
 // 🔁 Load all posts and their comments
 function loadPosts() {
   const token = localStorage.getItem('token');
-  const currentUsername = localStorage.getItem('username'); // 🧠 Save this during login
 
   fetch('/api/posts/', {
     headers: token ? { 'Authorization': 'Token ' + token } : {}
@@ -12,22 +11,30 @@ function loadPosts() {
       postList.innerHTML = '';
 
       data.forEach(post => {
-        const isAuthor = token && post.author.username === currentUsername;
         const card = document.createElement('div');
         card.className = 'col-md-4';
-        card.innerHTML = `
-          <div class="card shadow-sm">
-            <div class="card-body">
-              <h5 class="post-title">${post.title}</h5>
-              <p class="post-content">${post.content}</p>
-              <small>By ${post.author.username}</small><br>
-              <small>👍 ${post.likes_count}</small>
 
-              ${isAuthor ? `
-                <div class="mt-2">
-                  <button class="btn btn-sm btn-outline-secondary edit-btn" data-id="${post.id}">Edit</button>
-                  <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${post.id}">Delete</button>
-                </div>
+        card.innerHTML = `
+          <div class="card shadow-sm mb-4">
+            <div class="card-body">
+              <h5>${post.title}</h5>
+              <p>${post.content}</p>
+              <small>By ${post.author.username}</small><br>
+
+              <button class="btn btn-sm btn-outline-primary like-btn mt-2" data-post-id="${post.id}">
+                👍 ${post.likes_count}
+              </button>
+
+              ${post.is_owner ? `
+                <button class="btn btn-sm btn-warning mt-2 edit-post-btn" 
+                        data-id="${post.id}" 
+                        data-title="${encodeURIComponent(post.title)}" 
+                        data-content="${encodeURIComponent(post.content)}">
+                  ✏️ Edit
+                </button>
+                <button class="btn btn-sm btn-danger mt-2 delete-post-btn" data-id="${post.id}">
+                  🗑️ Delete
+                </button>
               ` : ''}
 
               <div class="mt-3">
@@ -38,84 +45,20 @@ function loadPosts() {
             </div>
           </div>
         `;
+
         postList.appendChild(card);
-
-        // Load comments for each post
         loadComments(post.id);
-      });
-
-      // 🔄 Setup Edit/Delete Listeners
-      document.querySelectorAll('.edit-btn').forEach(btn => {
-        btn.addEventListener('click', handleEditPost);
-      });
-
-      document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', handleDeletePost);
       });
     });
 }
 
-async function handleEditPost(e) {
-  const postId = e.target.dataset.id;
-  const card = e.target.closest('.card-body');
-  const titleEl = card.querySelector('.post-title');
-  const contentEl = card.querySelector('.post-content');
-
-  const newTitle = prompt('Edit Title:', titleEl.textContent);
-  const newContent = prompt('Edit Content:', contentEl.textContent);
-
-  if (!newTitle || !newContent) return;
-
-  const token = localStorage.getItem('token');
-
-  const response = await fetch(`/api/posts/${postId}/`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Token ' + token
-    },
-    body: JSON.stringify({ title: newTitle, content: newContent })
-  });
-
-  if (response.ok) {
-    loadPosts();
-  } else {
-    alert('❌ Failed to update post');
-  }
-}
-
-async function handleDeletePost(e) {
-  const postId = e.target.dataset.id;
-  const confirmDelete = confirm('Are you sure you want to delete this post?');
-
-  if (!confirmDelete) return;
-
-  const token = localStorage.getItem('token');
-
-  const response = await fetch(`/api/posts/${postId}/`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': 'Token ' + token
-    }
-  });
-
-  if (response.ok) {
-    loadPosts();
-  } else {
-    alert('❌ Failed to delete post');
-  }
-}
-
-
-// 🔁 Load comments for a specific post
+// 🔁 Load comments for a post
 async function loadComments(postId) {
   try {
     const res = await fetch(`/api/posts/${postId}/comments/`);
     const data = await res.json();
-
     const commentList = document.getElementById(`comments-${postId}`);
     commentList.innerHTML = '';
-
     data.forEach(comment => {
       const li = document.createElement('li');
       li.textContent = `${comment.author.username}: ${comment.text}`;
@@ -126,26 +69,20 @@ async function loadComments(postId) {
   }
 }
 
-// ✅ Run after DOM fully loaded
+// ✅ DOM Ready
 document.addEventListener('DOMContentLoaded', () => {
   const postForm = document.getElementById('post-form');
   const postMessage = document.getElementById('post-message');
 
-  // Load all posts on page load
   loadPosts();
 
-  // 📝 Handle post creation
+  // 📝 Create post
   postForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const title = document.getElementById('title').value.trim();
     const content = document.getElementById('content').value.trim();
     const token = localStorage.getItem('token');
-
-    if (!token) {
-      postMessage.textContent = '❌ Login required';
-      postMessage.style.color = 'red';
-      return;
-    }
+    if (!token) return (postMessage.textContent = '❌ Login required');
 
     try {
       const response = await fetch('/api/posts/', {
@@ -160,33 +97,27 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await response.json();
       if (response.ok) {
         postMessage.textContent = '✅ Post created!';
-        postMessage.style.color = 'green';
         postForm.reset();
         loadPosts();
       } else {
         postMessage.textContent = '❌ ' + (data.detail || 'Error creating post');
-        postMessage.style.color = 'red';
       }
     } catch (err) {
       postMessage.textContent = '❌ Network error';
-      postMessage.style.color = 'red';
     }
   });
 
-  // 💬 Handle comment submission
+  // 🌐 Global Click Handling for dynamic buttons
   document.addEventListener('click', async (e) => {
+    const token = localStorage.getItem('token');
+
+    // 💬 Comment
     if (e.target.classList.contains('comment-btn')) {
       const postId = e.target.dataset.postId;
       const input = document.querySelector(`.comment-input[data-post-id="${postId}"]`);
       const text = input.value.trim();
-      const token = localStorage.getItem('token');
-
       if (!text) return;
-
-      if (!token) {
-        alert('Login required to comment.');
-        return;
-      }
+      if (!token) return alert('Login required to comment.');
 
       try {
         const res = await fetch(`/api/posts/${postId}/comments/`, {
@@ -208,5 +139,96 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('❌ Network error.');
       }
     }
+
+    // 👍 Like
+    if (e.target.classList.contains('like-btn')) {
+      const postId = e.target.dataset.postId;
+      if (!token) return alert('❌ You must be logged in to like posts.');
+
+      try {
+        const response = await fetch(`/api/posts/${postId}/like/`, {
+          method: 'POST',
+          headers: { 'Authorization': 'Token ' + token }
+        });
+
+        if (response.ok) loadPosts();
+        else alert('❌ Failed to like/unlike the post.');
+      } catch (err) {
+        alert('❌ Network error');
+      }
+    }
+
+    // ✏️ Edit
+    if (e.target.classList.contains('edit-post-btn')) {
+      const id = e.target.dataset.id;
+      const title = decodeURIComponent(e.target.dataset.title);
+      const content = decodeURIComponent(e.target.dataset.content);
+
+      document.getElementById('edit-post-id').value = id;
+      document.getElementById('edit-title').value = title;
+      document.getElementById('edit-content').value = content;
+      document.getElementById('edit-post-section').style.display = 'block';
+      window.scrollTo(0, 0);
+    }
+
+    // 🗑️ Delete
+    if (e.target.classList.contains('delete-post-btn')) {
+      const id = e.target.dataset.id;
+      const confirmed = confirm('Are you sure you want to delete this post?');
+      if (!confirmed) return;
+
+      try {
+        const res = await fetch(`/api/posts/${id}/`, {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Token ' + token }
+        });
+        if (res.ok) {
+          loadPosts();
+        } else {
+          alert('❌ Could not delete post.');
+        }
+      } catch (err) {
+        alert('❌ Network error while deleting post.');
+      }
+    }
+  });
+
+  // ✏️ Submit edited post
+  document.getElementById('edit-post-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const id = document.getElementById('edit-post-id').value;
+    const title = document.getElementById('edit-title').value.trim();
+    const content = document.getElementById('edit-content').value.trim();
+    const token = localStorage.getItem('token');
+
+    try {
+      const response = await fetch(`/api/posts/${id}/`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token ' + token
+        },
+        body: JSON.stringify({ title, content })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        document.getElementById('edit-post-message').textContent = '✅ Post updated!';
+        document.getElementById('edit-post-form').reset();
+        document.getElementById('edit-post-section').style.display = 'none';
+        loadPosts();
+      } else {
+        document.getElementById('edit-post-message').textContent = '❌ ' + (data.detail || 'Error updating post');
+      }
+    } catch (err) {
+      document.getElementById('edit-post-message').textContent = '❌ Network error';
+    }
+  });
+
+  // ❌ Cancel edit
+  document.getElementById('cancel-edit').addEventListener('click', () => {
+    document.getElementById('edit-post-form').reset();
+    document.getElementById('edit-post-section').style.display = 'none';
   });
 });
